@@ -1,0 +1,82 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  annotations:    
+  labels:
+    openshift.io/component: api
+    openshift.io/control-plane: "true"
+  name: openshift-apiserver
+  namespace: openshift-apiserver
+spec:
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      openshift.io/component: api
+      openshift.io/control-plane: "true"
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        openshift.io/component: api
+        openshift.io/control-plane: "true"
+      name: openshift-apiserver
+    spec:
+      containers:
+      - args:
+        - --config=/etc/origin/master/master-config.yaml
+        - -v=0
+        command:
+        - hypershift
+        - openshift-apiserver
+        env:
+        - name: ADDITIONAL_ALLOWED_REGISTRIES
+          value: registry.centos.org
+        image: openshift/origin:latest
+        imagePullPolicy: IfNotPresent
+        name: apiserver
+        ports:
+        - containerPort: 8445
+          hostPort: 8445
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 8445
+            scheme: HTTPS
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        resources: {}
+        securityContext:
+          privileged: true
+          runAsUser: 0
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/origin/master/
+          name: master-config
+        - mountPath: /etc/origin/cloudprovider/
+          name: master-cloud-provider
+      dnsPolicy: ClusterFirst
+      hostNetwork: true
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: openshift-apiserver
+      serviceAccountName: openshift-apiserver
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: master-config
+        secret:
+          secretName: openshift-apiserver-config
+      - hostPath:
+          path: /etc/origin/cloudprovider
+          type: ""
+        name: master-cloud-provider
+  templateGeneration: 1
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 1
+    type: RollingUpdate
+
